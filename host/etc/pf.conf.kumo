@@ -1,0 +1,18 @@
+# Merge into /etc/pf.conf, then: pfctl -nf /etc/pf.conf && pfctl -f /etc/pf.conf
+#
+# LAN clients only ever talk to the VM (nginx on :8096). The storage agent on
+# :9090 is reachable from the VM over the tap and from nowhere else.
+
+kumo_vm  = "100.64.1.3"     # VM side of the vmd local interface
+kumo_tap = "100.64.1.2"     # host side, where kumo-agent listens
+
+# VM outbound (yt-dlp, apk)
+pass in proto { udp tcp } from 100.64.0.0/10 to any port domain rdr-to 1.1.1.1 port domain
+pass out on egress from 100.64.0.0/10 to any nat-to (egress)
+
+# LAN -> Kumo web app
+pass in on egress proto tcp to (egress) port 8096 rdr-to $kumo_vm port 8096
+
+# Storage agent: tap only, VM only
+block in quick on egress proto tcp to port 9090
+pass in on tap proto tcp from $kumo_vm to $kumo_tap port 9090

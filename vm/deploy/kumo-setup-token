@@ -1,0 +1,41 @@
+#!/bin/sh
+# Write the nginx snippets that let the /_agent/ locations reach the host agent,
+# from KUMO_AGENT_URL and KUMO_AGENT_TOKEN in /etc/kumo/kumo.env. Then reload.
+set -eu
+
+ENV=/etc/kumo/kumo.env
+DIR=/etc/nginx/kumo
+
+[ "$(id -u)" = 0 ] || { echo "kumo-setup-token: run as root"; exit 1; }
+[ -f "$ENV" ] || { echo "kumo-setup-token: $ENV missing"; exit 1; }
+
+# shellcheck disable=SC1090
+. "$ENV"
+
+url="${KUMO_AGENT_URL:-http://100.64.1.2:9090}"
+hostport="${url#*://}"
+hostport="${hostport%%/*}"
+token="${KUMO_AGENT_TOKEN:-}"
+
+case "$token" in
+	'' ) echo "kumo-setup-token: KUMO_AGENT_TOKEN is empty in $ENV"; exit 1 ;;
+	*[!A-Za-z0-9_-]* ) echo "kumo-setup-token: token has unexpected characters"; exit 1 ;;
+esac
+
+install -d -m 0750 -o root -g nginx "$DIR"
+umask 027
+printf 'server %s;\n' "$hostport" > "$DIR/agent-upstream.conf"
+printf 'proxy_set_header Authorization "Bearer %s";\n' "$token" > "$DIR/agent-auth.conf"
+chown root:nginx "$DIR/agent-upstream.conf" "$DIR/agent-auth.conf"
+chmod 0640 "$DIR/agent-upstream.conf" "$DIR/agent-auth.conf"
+
+nginx -t
+rc-service nginx reload 2>/dev/null || rc-service nginx start
+rc-service kumo restart 2>/dev/null || true
+
+if curl -fsS -m 5 -H "Authorization: Bearer $token" "$url/v1/whoami" >/dev/null 2>&1; then
+	echo "agent OK at $url"
+else
+	echo "warning: could not authenticate against $url/v1/whoami"
+	echo "check the token, pf, and kumo_agent on the host"
+fi

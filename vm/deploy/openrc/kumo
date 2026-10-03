@@ -1,0 +1,30 @@
+#!/sbin/openrc-run
+# /etc/init.d/kumo
+
+name="kumo"
+description="Kumo-Film API and download worker"
+
+if [ -f /etc/kumo/kumo.env ]; then
+	set -a
+	. /etc/kumo/kumo.env
+	set +a
+fi
+
+command="/opt/kumo/venv/bin/uvicorn"
+command_args="kumo.main:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --proxy-headers --forwarded-allow-ips=127.0.0.1"
+command_user="kumo:kumo"
+command_background=true
+directory="/opt/kumo/api"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/kumo/kumo.log"
+error_log="/var/log/kumo/kumo.log"
+retry="TERM/20/KILL/5"
+
+depend() {
+	need net
+	before nginx
+}
+
+start_pre() {
+	checkpath -d -m 0750 -o kumo:kumo /var/lib/kumo /var/lib/kumo/tmp /var/log/kumo
+}

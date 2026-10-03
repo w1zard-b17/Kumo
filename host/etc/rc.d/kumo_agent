@@ -1,0 +1,16 @@
+#!/bin/ksh
+#
+# /etc/rc.d/kumo_agent
+
+daemon="/usr/local/bin/kumo-agent"
+daemon_flags="-c /etc/kumo/agent.conf"
+daemon_user="_kumo"
+daemon_logger="daemon.info"
+
+. /etc/rc.d/rc.subr
+
+pexp=".*python3.* -m kumo_agent${daemon_flags:+ ${daemon_flags}}"
+rc_bg=YES
+rc_reload=NO
+
+rc_cmd $1

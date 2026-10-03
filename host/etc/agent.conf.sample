@@ -1,0 +1,22 @@
+# /etc/kumo/agent.conf
+[agent]
+# Listen only on the host side of the vmd "local interface" tap.
+# Check with: ifconfig tap0   (host = 100.64.<vm id>.2, VM = 100.64.<vm id>.3)
+bind = 100.64.1.2
+port = 9090
+
+db = /var/db/kumo/agent.db
+
+# Keep this much free space on every disk, uploads that would eat into it are refused.
+reserve = 2G
+
+# Streaming buffer in bytes and upload inactivity timeout in seconds.
+chunk_size = 262144
+upload_timeout = 120
+
+# Failed authentications per source IP per minute before answering 429.
+auth_fail_limit = 20
+
+# Refuse all I/O on a disk whose mountpoint has nothing mounted on it, so a
+# powered-off HDD bay never fills the root filesystem. Only disable for development.
+require_mount = yes
